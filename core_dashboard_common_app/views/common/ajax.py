@@ -1,6 +1,9 @@
 """ Ajax API
 """
 import json
+from django.http import JsonResponse
+from django.shortcuts import redirect, render
+from django.template import loader
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -33,6 +36,8 @@ from core_main_app.components.template.models import Template
 from core_main_app.components.workspace import api as workspace_api
 from core_main_app.settings import INSTALLED_APPS
 from core_main_app.utils.labels import get_data_label, get_form_label
+from core_main_app.utils.xml import get_content_by_xpath, format_content_xml
+from core_dashboard_common_app.views.common.forms import UserForm
 
 if "core_curate_app" in INSTALLED_APPS:
     from core_curate_app.components.curate_data_structure.models import (
@@ -442,6 +447,61 @@ def _delete_query(request, query_ids):
 
 
 @login_required
+def load_form_change_owner(request):
+    """Load the change-owner form for a single document, with its current
+    owner preselected.
+
+    Args:
+        request:
+
+    Returns:
+    """
+    document_id = request.POST.get("document_id")
+    functional_object = request.POST.get("functional_object")
+
+    if not document_id or not functional_object:
+        return HttpResponseBadRequest(
+            {"Bad entries. Please check the parameters."}
+        )
+
+    current_owner_id = None
+    try:
+        if functional_object == constants.FUNCTIONAL_OBJECT_ENUM.RECORD.value:
+            current_owner_id = data_api.get_by_id(
+                document_id, request.user
+            ).user_id
+        elif functional_object == constants.FUNCTIONAL_OBJECT_ENUM.FILE.value:
+            current_owner_id = blob_api.get_by_id(
+                document_id, request.user
+            ).user_id
+        elif (
+            functional_object == constants.FUNCTIONAL_OBJECT_ENUM.FORM.value
+            and "core_curate_app" in INSTALLED_APPS
+        ):
+            current_owner_id = curate_data_structure_api.get_by_id(
+                document_id, request.user
+            ).user_id
+    except Exception:
+        # Owner can't be resolved (e.g. no access) - the form falls back
+        # to its default blank choice.
+        current_owner_id = None
+
+    form = UserForm(request.user, current_owner_id)
+
+    return HttpResponse(
+        json.dumps(
+            {
+                "form": loader.render_to_string(
+                    "core_dashboard_common_app/list/modals/change_owner_form.html",
+                    {"user_form": form},
+                )
+            }
+        ),
+        content_type="application/javascript",
+    )
+
+
+@login_required
 def change_owner_document(request):
     """Change owner of a document (record or form).
 
@@ -589,6 +649,9 @@ def edit_record(request):
             content_type="application/json",
         )
 
+    print(f'Data_id: {request.POST["id"]}')
+    print(f"Request: {request}")
+    
     # Check if the data is locked
     if lock_api.is_object_locked(data.id, request.user):
         message = Message(
@@ -668,14 +731,26 @@ def edit_record(request):
             json.dumps({"message": message.message, "tags": message.tags}),
             content_type="application/json",
         )
+    
 
-    return HttpResponse(
-        json.dumps(
-            {
-                "url": reverse(
-                    "core_curate_enter_data", args=(curate_data_structure.id,)
-                )
-            }
-        ),
-        content_type="application/javascript",
-    )
+    data_id = data.id
+    data_content = data.content
+    data_title = data.title
+    data_template = data.template_id
+    
+    print(data_template)
+    
+    data_content = format_content_xml(data_content)
+
+    # Store data in session
+    request.session['edit_record_data'] = {
+        'data_id': data_id,
+        'data_content': data_content,
+        'data_title': data_title,
+        'test_id' :  data_template,
+        'edit': True
+    }
+
+    return JsonResponse({
+        'url': '/gensel/edit'
+    })

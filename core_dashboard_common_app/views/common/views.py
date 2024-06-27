@@ -5,7 +5,9 @@ import math
 
 from django.conf import settings as conf_settings
 from django.contrib import messages
+from django.contrib.auth import update_session_auth_hash
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth.forms import PasswordChangeForm
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import IntegrityError
 from django.http.response import HttpResponseRedirect
@@ -89,6 +91,7 @@ def my_profile(request):
             "page_title": "My Profile",
             "ENABLE_SAML2_SSO_AUTH": conf_settings.ENABLE_SAML2_SSO_AUTH,
         },
+        assets={"css": dashboard_constants.CSS_PROFILE},
     )
 
 
@@ -136,6 +139,12 @@ def my_profile_edit(request):
                 "Profile information edited.",
             )
             return HttpResponseRedirect(reverse("core_dashboard_profile"))
+        return render(
+            request,
+            dashboard_constants.DASHBOARD_PROFILE_EDIT_TEMPLATE,
+            context={"form": form, "page_title": "Edit Profile"},
+            assets={"css": dashboard_constants.CSS_PROFILE},
+        )
     user = request.user
     data = {
         "firstname": user.first_name,
@@ -144,29 +153,76 @@ def my_profile_edit(request):
         "email": user.email,
     }
     form = _get_edit_profile_form(
-        request, dashboard_constants.DASHBOARD_PROFILE_TEMPLATE, data
+        request, dashboard_constants.DASHBOARD_PROFILE_TEMPLATE, initial=data
     )
 
     return render(
         request,
         dashboard_constants.DASHBOARD_PROFILE_EDIT_TEMPLATE,
         context={"form": form, "page_title": "Edit Profile"},
+        assets={"css": dashboard_constants.CSS_PROFILE},
     )
 
 
-def _get_edit_profile_form(request, template, data=None):
-    """Edit the profile.
+@login_required
+def my_profile_change_password(request):
+    """Change the connected user's password.
+
+    Args:
+        request:
+
+    Returns:
+    """
+    if request.method == "POST":
+        form = PasswordChangeForm(user=request.user, data=request.POST)
+        if form.is_valid():
+            user = form.save()
+            # keep the user logged in after their password hash changes
+            update_session_auth_hash(request, user)
+            messages.add_message(
+                request,
+                messages.SUCCESS,
+                "Password changed successfully.",
+            )
+            return HttpResponseRedirect(reverse("core_dashboard_profile"))
+    else:
+        form = PasswordChangeForm(user=request.user)
+
+    for field in form.fields.values():
+        field.widget.attrs.setdefault("class", "form-control")
+
+    return render(
+        request,
+        dashboard_constants.DASHBOARD_PROFILE_CHANGE_PASSWORD_TEMPLATE,
+        context={"form": form, "page_title": "Change Password"},
+        assets={"css": dashboard_constants.CSS_PROFILE},
+    )
+
+
+def _get_edit_profile_form(request, template, initial=None):
+    """Build the edit-profile form.
+
+    On GET, `initial` holds the user's current values and the form is left
+    unbound so it displays them without triggering "required" validation
+    errors. On POST (`initial=None`), the form is bound to `request.POST`
+    to validate the submission.
 
     Args:
         request
         template
-        data
+        initial
 
     Returns:
     """
-    data = request.POST if data is None else data
     try:
-        return EditProfileForm(data)
+        form = (
+            EditProfileForm(initial=initial)
+            if initial is not None
+            else EditProfileForm(request.POST)
+        )
+        for field in form.fields.values():
+            field.widget.attrs.setdefault("class", "form-control")
+        return form
     except Exception:
         message = "A problem with the form has occurred."
         return render(
@@ -200,7 +256,7 @@ def _error_while_saving(request, form):
 class DashboardRecords(CommonView):
     """List the records."""
 
-    template = dashboard_constants.DASHBOARD_TEMPLATE
+    template = dashboard_constants.RECORDS_DASHBOARD_TEMPLATE
     data_template = (
         dashboard_constants.DASHBOARD_RECORDS_TEMPLATE_TABLE_PAGINATION
     )
@@ -303,7 +359,7 @@ class DashboardRecords(CommonView):
             ]
 
         # Set page title
-        context.update({"page_title": "Dashboard"})
+        context.update({"page_title": "My Data"})
 
         return self.common_render(
             request,
@@ -399,9 +455,23 @@ class DashboardRecords(CommonView):
                     "path": "core_main_app/common/js/tooltip.js",
                     "is_raw": False,
                 },
+                {
+                    "path": "core_dashboard_common_app/user/js/download_user_data.js",
+                    "is_raw": False,
+                },
+                {
+                    "path": "core_dashboard_common_app/user/js/download_user_data.raw.js",
+                    "is_raw": True,
+                },
+                {
+                    "path": "core_main_app/common/js/wait/waiting.js",
+                    "is_raw": False,
+                },
             ],
         }
 
+        assets["css"].append("core_main_app/common/css/wait/waiting.css")
+        
         # Admin
         if self.administration:
             assets["js"].append(
@@ -677,7 +747,7 @@ class DashboardFiles(CommonView):
             )
 
         # Set page title
-        context.update({"page_title": "Dashboard"})
+        context.update({"page_title": "Files"})
 
         return self.common_render(
             request,
@@ -1136,6 +1206,9 @@ class DashboardWorkspaces(CommonView):
                     "is_global": workspace_api.is_workspace_global(
                         user_workspace
                     ),
+                    "records_count": workspace_data_api.get_all_by_workspace(
+                        user_workspace, request.user
+                    ).count(),
                 }
             )
 
@@ -1201,7 +1274,7 @@ class DashboardWorkspaces(CommonView):
             )
 
         # Set page title
-        context.update({"page_title": "Dashboard"})
+        context.update({"page_title": "Shared Workspaces"})
 
         return self.common_render(
             request,
@@ -1295,7 +1368,7 @@ class DashboardWorkspaceRecords(CommonView):
             )
 
         # Set page title
-        context.update({"page_title": "Dashboard"})
+        context.update({"page_title": "Workspace"})
 
         return self.common_render(
             request,

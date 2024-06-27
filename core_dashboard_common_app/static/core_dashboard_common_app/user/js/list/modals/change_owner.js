@@ -2,10 +2,28 @@
  * Change document owner
  */
 changeOwnerDocument = function() {
-    var $recordRow = $(this).closest('tr');;
-    $('.'+functional_object+'-id').val($recordRow.attr("objectid"));
+    var $recordRow = $(this).closest('tr');
+    var documentId = $recordRow.attr("objectid");
+    $('.'+functional_object+'-id').val(documentId);
     $("#banner_change_owner_errors").hide();
     $("#change-owner-modal").modal("show");
+
+    $.ajax({
+        url : loadFormChangeOwnerUrl,
+        type : "POST",
+        dataType: "json",
+        data : {
+            document_id: documentId,
+            functional_object: functional_object
+        },
+        success: function(data){
+            $("#change-owner-form-container").html(data.form);
+        },
+        error:function(data){
+            $("#form_change_owner_errors").html(data.responseText);
+            $("#banner_change_owner_errors").show(500);
+        }
+    });
 };
 
 /**
