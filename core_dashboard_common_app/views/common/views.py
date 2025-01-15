@@ -200,7 +200,7 @@ def _error_while_saving(request, form):
 class DashboardRecords(CommonView):
     """List the records."""
 
-    template = dashboard_constants.DASHBOARD_TEMPLATE
+    template = dashboard_constants.RECORDS_DASHBOARD_TEMPLATE
     data_template = (
         dashboard_constants.DASHBOARD_RECORDS_TEMPLATE_TABLE_PAGINATION
     )
@@ -303,7 +303,7 @@ class DashboardRecords(CommonView):
             ]
 
         # Set page title
-        context.update({"page_title": "Dashboard"})
+        context.update({"page_title": "My Data"})
 
         return self.common_render(
             request,
@@ -399,9 +399,23 @@ class DashboardRecords(CommonView):
                     "path": "core_main_app/common/js/tooltip.js",
                     "is_raw": False,
                 },
+                {
+                    "path": "core_dashboard_common_app/user/js/download_user_data.js",
+                    "is_raw": False,
+                },
+                {
+                    "path": "core_dashboard_common_app/user/js/download_user_data.raw.js",
+                    "is_raw": True,
+                },
+                {
+                    "path": "core_main_app/common/js/wait/waiting.js",
+                    "is_raw": False,
+                },
             ],
         }
 
+        assets["css"].append("core_main_app/common/css/wait/waiting.css")
+        
         # Admin
         if self.administration:
             assets["js"].append(
@@ -677,7 +691,7 @@ class DashboardFiles(CommonView):
             )
 
         # Set page title
-        context.update({"page_title": "Dashboard"})
+        context.update({"page_title": "Files"})
 
         return self.common_render(
             request,
@@ -1201,7 +1215,7 @@ class DashboardWorkspaces(CommonView):
             )
 
         # Set page title
-        context.update({"page_title": "Dashboard"})
+        context.update({"page_title": "Shared Workspaces"})
 
         return self.common_render(
             request,
@@ -1295,7 +1309,7 @@ class DashboardWorkspaceRecords(CommonView):
             )
 
         # Set page title
-        context.update({"page_title": "Dashboard"})
+        context.update({"page_title": "Workspace"})
 
         return self.common_render(
             request,
