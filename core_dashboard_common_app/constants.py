@@ -11,6 +11,7 @@ DASHBOARD_PROFILE_TEMPLATE = "core_dashboard_common_app/my_profile.html"
 DASHBOARD_PROFILE_EDIT_TEMPLATE = (
     "core_dashboard_common_app/my_profile_edit.html"
 )
+RECORDS_DASHBOARD_TEMPLATE = "core_dashboard_common_app/my_records_dashboard.html"
 DASHBOARD_TEMPLATE = "core_dashboard_common_app/my_dashboard.html"
 ADMIN_DASHBOARD_TEMPLATE = "core_dashboard_common_app/admin/dashboard.html"
 
