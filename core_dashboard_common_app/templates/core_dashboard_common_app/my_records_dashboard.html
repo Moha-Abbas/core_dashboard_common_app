@@ -1,0 +1,20 @@
+{% extends 'core_main_app/_render/admin/theme/tools/box.html' %}
+{% load special_plural %}
+
+{% block box_title %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1>My Data</h1>
+    <a href="#" id="downloaduserdata" class="btn btn-primary" style="margin-bottom: 0;">
+        <i class="fas fa-download"></i> Download Excel
+    </a>
+</div>
+{% endblock %}
+
+{% block box_body %}
+{% if data.user_data %}
+    Total number of {{data.document|special_plural}}: {{ data.number_total }}
+{% endif %}
+<div id="records-tab" class="tab-content">
+    {% include data.template with objects=data.user_data group='user' count=data.number_total tabs=data.tabs document=data.document%}
+</div>
+{% endblock %}
